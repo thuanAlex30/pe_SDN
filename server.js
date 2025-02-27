@@ -78,10 +78,23 @@ app.get("/rooms/:id/edit", async (req, res) => {
     res.render("editRoom", { room });
 });
 
-app.put("/rooms/:id", async (req, res) => {
-    await Room.findByIdAndUpdate(req.params.id, req.body);
-    res.redirect("/");
+
+app.put("/rooms/:id", validateRoom, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        const room = await Room.findById(req.params.id); // Lấy lại dữ liệu phòng
+        return res.status(400).render("editRoom", { room, errors: errors.array() });
+    }
+
+    try {
+        await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        res.redirect("/");
+    } catch (error) {
+        res.status(500).send("Internal Server Error");
+    }
 });
+
+
 
 app.delete("/rooms/:id", async (req, res) => {
     await Room.findByIdAndDelete(req.params.id);
