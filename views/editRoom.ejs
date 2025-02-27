@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chỉnh sửa phòng</title>
+</head>
+<body>
+<h1>Chỉnh sửa phòng</h1>
+<form action="/rooms/<%= room._id %>?_method=PUT" method="POST">
+    <label>Số phòng:</label>
+    <input type="text" name="roomNumber" value="<%= room.roomNumber %>" required>
+    <label>Sức chứa:</label>
+    <input type="number" name="capacity" value="<%= room.capacity %>" required>
+    <label>Trạng thái:</label>
+    <select name="status">
+        <option value="available" <%= room.status === "available" ? "selected" : "" %>>Available</option>
+        <option value="occupied" <%= room.status === "occupied" ? "selected" : "" %>>Occupied</option>
+    </select>
+    <label>Giá thuê (VND/h):</label>
+    <input type="number" name="pricePerHour" value="<%= room.pricePerHour %>" required>
+    <button type="submit">Lưu thay đổi</button>
+</form>
+<a href="/">Quay lại</a>
+</body>
+</html>

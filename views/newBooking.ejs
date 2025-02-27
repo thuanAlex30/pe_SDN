@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thêm đặt phòng</title>
+</head>
+<body>
+<h1>Thêm đặt phòng</h1>
+<form action="/bookings" method="POST">
+    <label>Tên khách hàng:</label>
+    <input type="text" name="customerName" required>
+    <label>Số phòng:</label>
+    <input type="text" name="roomNumber" required>
+    <label>Giờ bắt đầu:</label>
+    <input type="datetime-local" name="startTime" required>
+    <label>Giờ kết thúc:</label>
+    <input type="datetime-local" name="endTime" required>
+    <button type="submit">Thêm đặt phòng</button>
+</form>
+<a href="/bookings">Quay lại</a>
+</body>
+</html>

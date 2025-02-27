@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý phòng Karaoke</title>
+</head>
+<body>
+<h1>Danh sách phòng</h1>
+<a href="/rooms/new">Thêm phòng mới</a>
+<table border="1">
+    <tr>
+        <th>Số phòng</th>
+        <th>Sức chứa</th>
+        <th>Trạng thái</th>
+        <th>Giá thuê</th>
+        <th>Hành động</th>
+    </tr>
+    <% rooms.forEach(room => { %>
+        <tr>
+            <td><%= room.roomNumber %></td>
+            <td><%= room.capacity %></td>
+            <td><%= room.status %></td>
+            <td><%= room.pricePerHour %> VND/h</td>
+            <td>
+                <a href="/rooms/<%= room._id %>/edit">Chỉnh sửa</a>
+                <form action="/rooms/<%= room._id %>?_method=DELETE" method="POST" style="display:inline;">
+                    <button type="submit">Xóa</button>
+                </form>
+            </td>
+        </tr>
+    <% }) %>
+</table>
+
+<a href="/bookings">Xem danh sách đặt phòng</a>
+</body>
+</html>

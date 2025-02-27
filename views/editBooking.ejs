@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chỉnh sửa đặt phòng</title>
+</head>
+<body>
+<h1>Chỉnh sửa đặt phòng</h1>
+<form action="/bookings/<%= booking._id %>?_method=PUT" method="POST">
+    <label>Tên khách hàng:</label>
+    <input type="text" name="customerName" value="<%= booking.customerName %>" required>
+    <label>Số phòng:</label>
+    <input type="text" name="roomNumber" value="<%= booking.roomNumber %>" required>
+    <label>Giờ bắt đầu:</label>
+    <input type="datetime-local" name="startTime" value="<%= booking.startTime.toISOString().slice(0, 16) %>" required>
+    <label>Giờ kết thúc:</label>
+    <input type="datetime-local" name="endTime" value="<%= booking.endTime.toISOString().slice(0, 16) %>" required>
+    <button type="submit">Lưu thay đổi</button>
+</form>
+<a href="/bookings">Quay lại</a>
+</body>
+</html>

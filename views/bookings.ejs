@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh sách đặt phòng</title>
+</head>
+<body>
+<h1>Danh sách đặt phòng</h1>
+<a href="/bookings/new">Thêm đặt phòng</a>
+<table border="1">
+    <tr>
+        <th>Khách hàng</th>
+        <th>Số phòng</th>
+        <th>Giờ bắt đầu</th>
+        <th>Giờ kết thúc</th>
+        <th>Tổng tiền</th>
+        <th>Hành động</th>
+    </tr>
+    <% bookings.forEach(booking => { %>
+        <tr>
+            <td><%= booking.customerName %></td>
+            <td><%= booking.roomNumber %></td>
+            <td><%= new Date(booking.startTime).toLocaleString() %></td>
+            <td><%= new Date(booking.endTime).toLocaleString() %></td>
+            <td><%= booking.totalAmount %> VND</td>
+            <td>
+                <a href="/bookings/<%= booking._id %>/edit">Chỉnh sửa</a>
+                <form action="/bookings/<%= booking._id %>?_method=DELETE" method="POST" style="display:inline;">
+                    <button type="submit">Xóa</button>
+                </form>
+            </td>
+        </tr>
+    <% }) %>
+</table>
+
+<a href="/">Quay lại</a>
+</body>
+</html>
