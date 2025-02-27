@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const methodOverride = require("method-override");
+const { body, validationResult } = require("express-validator");
 const dotenv = require("dotenv");
 const Room = require("./models/roomModel");
 const Booking = require("./models/bookingModel");
@@ -20,6 +21,39 @@ mongoose.connect(process.env.MONGO_URI, {
 }).then(() => console.log("Connected to MongoDB"))
     .catch(err => console.error("MongoDB connection error:", err));
 
+
+const validateRoom = [
+    body("roomNumber")
+        .notEmpty().withMessage("Room number is required")
+        .isNumeric().withMessage("Room number must be a number"),
+    body("capacity")
+        .isInt({ min: 1 }).withMessage("Capacity must be a positive integer"),
+    body("pricePerHour")
+        .isInt({ min: 0 }).withMessage("Price per hour must be a non-negative integer"),
+    (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).render("error", { errors: errors.array() });
+        }
+        next();
+    }
+];
+
+const validateBooking = [
+    body("customerName").notEmpty().withMessage("Customer name is required"),
+    body("roomNumber").notEmpty().withMessage("Room number is required"),
+    body("startTime").isISO8601().toDate().withMessage("Invalid start time format"),
+    body("endTime").isISO8601().toDate().withMessage("Invalid end time format"),
+    (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        next();
+    }
+];
+
+
 app.get("/", async (req, res) => {
     const rooms = await Room.find();
     res.render("index", { rooms });
@@ -29,10 +63,15 @@ app.get("/rooms/new", (req, res) => {
     res.render("newRoom");
 });
 
-app.post("/rooms", async (req, res) => {
-    await Room.create(req.body);
-    res.redirect("/");
+app.post("/rooms", validateRoom, async (req, res) => {
+    try {
+        await Room.create(req.body);
+        res.redirect("/");
+    } catch (error) {
+        res.status(400).render("error", { errors: [{ msg: error.message }] });
+    }
 });
+
 
 app.get("/rooms/:id/edit", async (req, res) => {
     const room = await Room.findById(req.params.id);
