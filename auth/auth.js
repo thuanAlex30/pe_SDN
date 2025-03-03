@@ -1,6 +1,8 @@
 const passport = require("passport");
 const FacebookStrategy = require("passport-facebook").Strategy;
 const dotenv = require("dotenv");
+const User = require('../models/User');
+
 
 dotenv.config();
 
@@ -11,13 +13,17 @@ passport.use(new FacebookStrategy({
     profileFields: ['id', 'displayName', 'email']
 }, async (accessToken, refreshToken, profile, done) => {
     try {
-        let user = await User.findOne({ facebookId: profile.id });
+        let user = await User.findOne({ facebookId: profile.id }); // <== LỖI Ở ĐÂY
         if (!user) {
-            user = await User.create({ facebookId: profile.id, name: profile.displayName });
+            user = await User.create({
+                facebookId: profile.id,
+                name: profile.displayName,
+                email: profile.emails ? profile.emails[0].value : null
+            });
         }
         return done(null, user);
-    } catch (err) {
-        return done(err, null);
+    } catch (error) {
+        return done(error, null);
     }
 }));
 
