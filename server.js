@@ -4,6 +4,8 @@ const bodyParser = require("body-parser");
 const methodOverride = require("method-override");
 const { body, validationResult } = require("express-validator");
 const dotenv = require("dotenv");
+const session = require("express-session");
+const passport = require("./auth/auth");
 const Room = require("./models/roomModel");
 const Booking = require("./models/bookingModel");
 
@@ -15,12 +17,20 @@ app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
 
+app.use(session({
+    secret: process.env.JWT_SECRET,
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 }).then(() => console.log("Connected to MongoDB"))
     .catch(err => console.error("MongoDB connection error:", err));
-
 
 const validateRoom = [
     body("roomNumber")
@@ -53,11 +63,14 @@ const validateBooking = [
     }
 ];
 
-
 app.get("/", async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/auth/facebook");
+    }
     const rooms = await Room.find();
-    res.render("index", { rooms });
+    res.render("index", { rooms, user: req.user });
 });
+
 
 app.get("/rooms/new", (req, res) => {
     res.render("newRoom");
@@ -72,20 +85,17 @@ app.post("/rooms", validateRoom, async (req, res) => {
     }
 });
 
-
 app.get("/rooms/:id/edit", async (req, res) => {
     const room = await Room.findById(req.params.id);
     res.render("editRoom", { room });
 });
 
-
 app.put("/rooms/:id", validateRoom, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        const room = await Room.findById(req.params.id); // Lấy lại dữ liệu phòng
+        const room = await Room.findById(req.params.id);
         return res.status(400).render("editRoom", { room, errors: errors.array() });
     }
-
     try {
         await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         res.redirect("/");
@@ -93,8 +103,6 @@ app.put("/rooms/:id", validateRoom, async (req, res) => {
         res.status(500).send("Internal Server Error");
     }
 });
-
-
 
 app.delete("/rooms/:id", async (req, res) => {
     await Room.findByIdAndDelete(req.params.id);
@@ -105,12 +113,11 @@ app.get("/bookings", async (req, res) => {
     const bookings = await Booking.find();
     res.render("bookings", { bookings });
 });
-// 🆕 Hiển thị form thêm đặt phòng
+
 app.get("/bookings/new", (req, res) => {
     res.render("newBooking");
 });
 
-// 💾 Xử lý thêm đặt phòng
 app.post("/bookings", async (req, res) => {
     const { customerName, roomNumber, startTime, endTime } = req.body;
     const room = await Room.findOne({ roomNumber });
@@ -126,22 +133,41 @@ app.post("/bookings", async (req, res) => {
     res.redirect("/bookings");
 });
 
-// ✏ Hiển thị form chỉnh sửa đặt phòng
 app.get("/bookings/:id/edit", async (req, res) => {
     const booking = await Booking.findById(req.params.id);
     res.render("editBooking", { booking });
 });
 
-// 💾 Xử lý cập nhật đặt phòng
 app.put("/bookings/:id", async (req, res) => {
     await Booking.findByIdAndUpdate(req.params.id, req.body);
     res.redirect("/bookings");
 });
 
-// ❌ Xóa đặt phòng
 app.delete("/bookings/:id", async (req, res) => {
     await Booking.findByIdAndDelete(req.params.id);
     res.redirect("/bookings");
+});
+
+app.get('/auth/facebook', passport.authenticate('facebook', { scope: ['email'] }));
+
+app.get('/auth/facebook/callback',
+    passport.authenticate('facebook', {
+        failureRedirect: '/'
+    }), (req, res) => {
+        res.redirect('/');
+    }
+);
+
+// app.get('/profile', (req, res) => {
+//     if (!req.isAuthenticated()) {
+//         return res.redirect('/');
+//     }
+//     res.json(req.user);
+// });
+app.get("/logout", (req, res) => {
+    req.logout(() => {
+        res.redirect("/");
+    });
 });
 
 const PORT = process.env.PORT || 3000;
