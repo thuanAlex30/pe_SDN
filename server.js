@@ -95,20 +95,21 @@ app.get('/auth/facebook/callback',
 // 🟢 Webhook Endpoint (Nhận dữ liệu từ bên thứ 3)
 app.post('/webhook', (req, res) => {
     console.log("📩 Webhook received:", req.body);
-    io.emit("webhook-event", req.body); // Emit the webhook event to clients
+    io.emit("webhook-event", req.body);
     res.status(200).send("Webhook received!");
 });
 
 
 // 🟢 MongoDB Change Stream (Realtime Database Updates)
-mongoose.connection.once("open", () => {
-    console.log("🔄 Listening for database changes...");
-    const changeStream = mongoose.connection.collection("users").watch();
-    changeStream.on("change", (change) => {
-        console.log("🔄 Database Change Detected:", change);
-        io.emit("database-update", change);
-    });
-});
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 15000, // Increase timeout
+    connectTimeoutMS: 30000 // Increase connection timeout
+})
+    .then(() => console.log("✅ MongoDB Connected"))
+    .catch(err => console.log("❌ MongoDB Connection Error:", err));
+
 
 // 🟢 WebSocket: Nhận kết nối từ client
 io.on("connection", (socket) => {

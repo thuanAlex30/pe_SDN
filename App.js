@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import socket from "./service/socketClient";
+import socket from "./sevice/socketClient";
 
 const App = () => {
     const [message, setMessage] = useState("Waiting for updates...");
