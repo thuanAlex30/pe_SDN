@@ -1,174 +1,171 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const bodyParser = require("body-parser");
-const methodOverride = require("method-override");
-const { body, validationResult } = require("express-validator");
-const dotenv = require("dotenv");
-const session = require("express-session");
-const passport = require("./auth/auth");
-const Room = require("./models/roomModel");
-const Booking = require("./models/bookingModel");
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const passport = require('passport');
+const session = require('express-session');
+const FacebookStrategy = require('passport-facebook').Strategy;
+const cors = require('cors');
+const http = require('http');
+const socketIo = require('socket.io');
+const bodyParser = require('body-parser');
+const methodOverride = require('method-override');
+const { body, validationResult } = require('express-validator');
+const Room = require('./models/roomModel');
+const Booking = require('./models/bookingModel');
 
-dotenv.config();
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
 
-app.set("view engine", "ejs");
-app.use(express.static("public"));
+app.use(express.json());
+app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(methodOverride("_method"));
+app.use(methodOverride('_method'));
+app.set('view engine', 'ejs');
+app.use(express.static('public'));
 
-app.use(session({
-    secret: process.env.JWT_SECRET,
-    resave: false,
-    saveUninitialized: false
+// Kết nối MongoDB
+mongoose.connection.once("open", () => {
+    console.log("🔄 Listening for database changes...");
+    const changeStream = mongoose.connection.collection("users").watch();
+    changeStream.on("change", (change) => {
+        console.log("🔄 Database Change Detected:", change);
+        io.emit("database-update", change); // Emit database changes to clients
+    });
+});
+
+// Mô hình User Schema
+const UserSchema = new mongoose.Schema({
+    facebookId: String,
+    name: String,
+    email: String
+});
+const User = mongoose.model('User', UserSchema);
+
+// Cấu hình session
+app.use(session({ secret: process.env.JWT_SECRET, resave: false, saveUninitialized: false }));
+
+// Passport config
+passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_CLIENT_ID,
+    clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+    callbackURL: process.env.FACEBOOK_CALLBACK_URL,
+    profileFields: ['id', 'displayName', 'emails']
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ facebookId: profile.id });
+        if (!user) {
+            user = new User({
+                facebookId: profile.id,
+                name: profile.displayName,
+                email: profile.emails ? profile.emails[0].value : "N/A"
+            });
+            await user.save();
+        }
+        return done(null, user);
+    } catch (err) {
+        return done(err, null);
+    }
 }));
+
+passport.serializeUser((user, done) => {
+    done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+    const user = await User.findById(id);
+    done(null, user);
+});
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(() => console.log("Connected to MongoDB"))
-    .catch(err => console.error("MongoDB connection error:", err));
-
-const validateRoom = [
-    body("roomNumber")
-        .notEmpty().withMessage("Room number is required")
-        .isNumeric().withMessage("Room number must be a number"),
-    body("capacity")
-        .isInt({ min: 1 }).withMessage("Capacity must be a positive integer"),
-    body("pricePerHour")
-        .isInt({ min: 0 }).withMessage("Price per hour must be a non-negative integer"),
-    (req, res, next) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).render("error", { errors: errors.array() });
-        }
-        next();
-    }
-];
-
-const validateBooking = [
-    body("customerName").notEmpty().withMessage("Customer name is required"),
-    body("roomNumber").notEmpty().withMessage("Room number is required"),
-    body("startTime").isISO8601().toDate().withMessage("Invalid start time format"),
-    body("endTime").isISO8601().toDate().withMessage("Invalid end time format"),
-    (req, res, next) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-        next();
-    }
-];
-
-app.get("/", async (req, res) => {
-    if (!req.isAuthenticated()) {
-        return res.redirect("/auth/facebook");
-    }
-    const rooms = await Room.find();
-    res.render("index", { rooms, user: req.user });
-});
-
-
-app.get("/rooms/new", (req, res) => {
-    res.render("newRoom");
-});
-
-app.post("/rooms", validateRoom, async (req, res) => {
-    try {
-        await Room.create(req.body);
-        res.redirect("/");
-    } catch (error) {
-        res.status(400).render("error", { errors: [{ msg: error.message }] });
-    }
-});
-
-app.get("/rooms/:id/edit", async (req, res) => {
-    const room = await Room.findById(req.params.id);
-    res.render("editRoom", { room });
-});
-
-app.put("/rooms/:id", validateRoom, async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        const room = await Room.findById(req.params.id);
-        return res.status(400).render("editRoom", { room, errors: errors.array() });
-    }
-    try {
-        await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        res.redirect("/");
-    } catch (error) {
-        res.status(500).send("Internal Server Error");
-    }
-});
-
-app.delete("/rooms/:id", async (req, res) => {
-    await Room.findByIdAndDelete(req.params.id);
-    res.redirect("/");
-});
-
-app.get("/bookings", async (req, res) => {
-    const bookings = await Booking.find();
-    res.render("bookings", { bookings });
-});
-
-app.get("/bookings/new", (req, res) => {
-    res.render("newBooking");
-});
-
-app.post("/bookings", async (req, res) => {
-    const { customerName, roomNumber, startTime, endTime } = req.body;
-    const room = await Room.findOne({ roomNumber });
-
-    if (!room) {
-        return res.status(400).send("Phòng không tồn tại!");
-    }
-
-    const duration = (new Date(endTime) - new Date(startTime)) / 3600000;
-    const totalAmount = duration * room.pricePerHour;
-
-    await Booking.create({ customerName, roomNumber, startTime, endTime, totalAmount });
-    res.redirect("/bookings");
-});
-
-app.get("/bookings/:id/edit", async (req, res) => {
-    const booking = await Booking.findById(req.params.id);
-    res.render("editBooking", { booking });
-});
-
-app.put("/bookings/:id", async (req, res) => {
-    await Booking.findByIdAndUpdate(req.params.id, req.body);
-    res.redirect("/bookings");
-});
-
-app.delete("/bookings/:id", async (req, res) => {
-    await Booking.findByIdAndDelete(req.params.id);
-    res.redirect("/bookings");
-});
-
+// 🟢 Facebook OAuth Routes
 app.get('/auth/facebook', passport.authenticate('facebook', { scope: ['email'] }));
 
 app.get('/auth/facebook/callback',
-    passport.authenticate('facebook', {
-        failureRedirect: '/'
-    }), (req, res) => {
-        res.redirect('/');
+    passport.authenticate('facebook', { failureRedirect: '/' }),
+    (req, res) => {
+        res.send(`Welcome, ${req.user.name}! <a href="/logout">Logout</a>`);
+        io.emit("facebook-login", { user: req.user.name, message: "User logged in via Facebook!" }); // Emit login event
     }
 );
 
-// app.get('/profile', (req, res) => {
-//     if (!req.isAuthenticated()) {
-//         return res.redirect('/');
-//     }
-//     res.json(req.user);
-// });
-app.get("/logout", (req, res) => {
-    req.logout(() => {
-        res.redirect("/");
+
+// 🟢 Webhook Endpoint (Nhận dữ liệu từ bên thứ 3)
+app.post('/webhook', (req, res) => {
+    console.log("📩 Webhook received:", req.body);
+    io.emit("webhook-event", req.body); // Emit the webhook event to clients
+    res.status(200).send("Webhook received!");
+});
+
+
+// 🟢 MongoDB Change Stream (Realtime Database Updates)
+mongoose.connection.once("open", () => {
+    console.log("🔄 Listening for database changes...");
+    const changeStream = mongoose.connection.collection("users").watch();
+    changeStream.on("change", (change) => {
+        console.log("🔄 Database Change Detected:", change);
+        io.emit("database-update", change);
     });
 });
 
+// 🟢 WebSocket: Nhận kết nối từ client
+io.on("connection", (socket) => {
+    console.log("🟢 Client connected");
+    socket.on("disconnect", () => console.log("🔴 Client disconnected"));
+});
+
+// 🟢 Logout Route
+app.get('/logout', (req, res) => {
+    req.logout(() => {
+        res.redirect('/');
+    });
+});
+
+// 🟢 Room API
+app.get('/rooms', async (req, res) => {
+    const rooms = await Room.find();
+    res.json(rooms);
+});
+
+app.post('/rooms', async (req, res) => {
+    const room = new Room(req.body);
+    await room.save();
+    res.status(201).json(room);
+});
+
+app.put('/rooms/:id', async (req, res) => {
+    const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(room);
+});
+
+app.delete('/rooms/:id', async (req, res) => {
+    await Room.findByIdAndDelete(req.params.id);
+    res.status(204).send();
+});
+
+// 🟢 Booking API
+app.get('/bookings', async (req, res) => {
+    const bookings = await Booking.find();
+    res.json(bookings);
+});
+
+app.post('/bookings', async (req, res) => {
+    const booking = new Booking(req.body);
+    await booking.save();
+    res.status(201).json(booking);
+});
+
+app.put('/bookings/:id', async (req, res) => {
+    const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(booking);
+});
+
+app.delete('/bookings/:id', async (req, res) => {
+    await Booking.findByIdAndDelete(req.params.id);
+    res.status(204).send();
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

@@ -13,7 +13,7 @@ passport.use(new FacebookStrategy({
     profileFields: ['id', 'displayName', 'email']
 }, async (accessToken, refreshToken, profile, done) => {
     try {
-        let user = await User.findOne({ facebookId: profile.id }); // <== LỖI Ở ĐÂY
+        let user = await User.findOne({ facebookId: profile.id });
         if (!user) {
             user = await User.create({
                 facebookId: profile.id,
