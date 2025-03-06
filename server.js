@@ -41,6 +41,37 @@ mongoose.connection.once("open", () => {
     });
 });
 
+const validateRoom = [
+    body("roomNumber")
+        .notEmpty().withMessage("Room number is required")
+        .isNumeric().withMessage("Room number must be a number"),
+    body("capacity")
+        .isInt({ min: 1 }).withMessage("Capacity must be a positive integer"),
+    body("pricePerHour")
+        .isInt({ min: 0 }).withMessage("Price per hour must be a non-negative integer"),
+    (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).render("error", { errors: errors.array() });
+        }
+        next();
+    }
+];
+
+const validateBooking = [
+    body("customerName").notEmpty().withMessage("Customer name is required"),
+    body("roomNumber").notEmpty().withMessage("Room number is required"),
+    body("startTime").isISO8601().toDate().withMessage("Invalid start time format"),
+    body("endTime").isISO8601().toDate().withMessage("Invalid end time format"),
+    (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        next();
+    }
+];
+
 // Mô hình User Schema
 const UserSchema = new mongoose.Schema({
     facebookId: String,
@@ -150,43 +181,76 @@ app.get('/rooms', async (req, res) => {
     }
 });
 
-
-app.post('/rooms', async (req, res) => {
-    const room = new Room(req.body);
-    await room.save();
-    res.status(201).json(room);
+app.post("/rooms", validateRoom, async (req, res) => {
+    try {
+        await Room.create(req.body);
+        res.redirect("/");
+    } catch (error) {
+        res.status(400).render("error", { errors: [{ msg: error.message }] });
+    }
 });
 
-app.put('/rooms/:id', async (req, res) => {
-    const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(room);
+app.get("/rooms/:id/edit", async (req, res) => {
+    const room = await Room.findById(req.params.id);
+    res.render("editRoom", { room });
 });
 
-app.delete('/rooms/:id', async (req, res) => {
+app.put("/rooms/:id", validateRoom, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        const room = await Room.findById(req.params.id);
+        return res.status(400).render("editRoom", { room, errors: errors.array() });
+    }
+    try {
+        await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        res.redirect("/");
+    } catch (error) {
+        res.status(500).send("Internal Server Error");
+    }
+});
+
+app.delete("/rooms/:id", async (req, res) => {
     await Room.findByIdAndDelete(req.params.id);
-    res.status(204).send();
+    res.redirect("/");
 });
 
-// 🟢 Booking API
-app.get('/bookings', async (req, res) => {
+app.get("/bookings", async (req, res) => {
     const bookings = await Booking.find();
-    res.json(bookings);
+    res.render("bookings", { bookings });
 });
 
-app.post('/bookings', async (req, res) => {
-    const booking = new Booking(req.body);
-    await booking.save();
-    res.status(201).json(booking);
+app.get("/bookings/new", (req, res) => {
+    res.render("newBooking");
 });
 
-app.put('/bookings/:id', async (req, res) => {
-    const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(booking);
+app.post("/bookings", async (req, res) => {
+    const { customerName, roomNumber, startTime, endTime } = req.body;
+    const room = await Room.findOne({ roomNumber });
+
+    if (!room) {
+        return res.status(400).send("Phòng không tồn tại!");
+    }
+
+    const duration = (new Date(endTime) - new Date(startTime)) / 3600000;
+    const totalAmount = duration * room.pricePerHour;
+
+    await Booking.create({ customerName, roomNumber, startTime, endTime, totalAmount });
+    res.redirect("/bookings");
 });
 
-app.delete('/bookings/:id', async (req, res) => {
+app.get("/bookings/:id/edit", async (req, res) => {
+    const booking = await Booking.findById(req.params.id);
+    res.render("editBooking", { booking });
+});
+
+app.put("/bookings/:id", async (req, res) => {
+    await Booking.findByIdAndUpdate(req.params.id, req.body);
+    res.redirect("/bookings");
+});
+
+app.delete("/bookings/:id", async (req, res) => {
     await Booking.findByIdAndDelete(req.params.id);
-    res.status(204).send();
+    res.redirect("/bookings");
 });
 
 const PORT = process.env.PORT || 3000;
