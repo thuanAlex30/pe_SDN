@@ -126,9 +126,20 @@ app.get('/logout', (req, res) => {
 
 // 🟢 Room API
 app.get('/rooms', async (req, res) => {
-    const rooms = await Room.find();
-    res.json(rooms);
+    if (!req.user) {
+        return res.redirect('/auth/facebook/');  // Redirect to login if the user is not logged in
+    }
+
+    try {
+        // Fetch rooms from the database
+        const rooms = await Room.find();
+        res.render('rooms', { user: req.user, rooms });  // Pass rooms and user to the view
+    } catch (error) {
+        console.error("Error fetching rooms:", error);
+        res.status(500).send("Error fetching rooms");
+    }
 });
+
 
 app.post('/rooms', async (req, res) => {
     const room = new Room(req.body);
