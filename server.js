@@ -187,7 +187,7 @@ app.get("/rooms/new", (req, res) => {
 app.post("/rooms", validateRoom, async (req, res) => {
     try {
         await Room.create(req.body);
-        res.redirect("/");
+        res.redirect("/rooms");
     } catch (error) {
         res.status(400).render("error", { errors: [{ msg: error.message }] });
     }
@@ -206,7 +206,7 @@ app.put("/rooms/:id", validateRoom, async (req, res) => {
     }
     try {
         await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        res.redirect("/");
+        res.redirect("/rooms");
     } catch (error) {
         res.status(500).send("Internal Server Error");
     }
@@ -214,7 +214,7 @@ app.put("/rooms/:id", validateRoom, async (req, res) => {
 
 app.delete("/rooms/:id", async (req, res) => {
     await Room.findByIdAndDelete(req.params.id);
-    res.redirect("/");
+    res.redirect("/rooms");
 });
 
 app.get("/bookings", async (req, res) => {
