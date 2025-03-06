@@ -180,6 +180,9 @@ app.get('/rooms', async (req, res) => {
         res.status(500).send("Error fetching rooms");
     }
 });
+app.get("/rooms/new", (req, res) => {
+    res.render("newRoom");
+});
 
 app.post("/rooms", validateRoom, async (req, res) => {
     try {
