@@ -96,8 +96,8 @@ app.get('/auth/facebook', passport.authenticate('facebook', { scope: ['email'] }
 app.get('/auth/facebook/callback',
     passport.authenticate('facebook', { failureRedirect: '/' }),
     (req, res) => {
-        res.send(`Welcome, ${req.user.name}! <a href="/logout">Logout</a>`);
-        io.emit("facebook-login", { user: req.user.name, message: "User logged in via Facebook!" }); // Emit login event
+        console.log('User authenticated:', req.user);  // Log the user object after Facebook login
+        res.redirect('/rooms');  // Redirect to rooms after successful login
     }
 );
 
