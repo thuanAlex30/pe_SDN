@@ -29,12 +29,13 @@ passport.use(new FacebookStrategy({
 }));
 
 passport.serializeUser((user, done) => {
+    console.log('Serializing user:', user); // Add log here to check user serialization
     done(null, user.id);
 });
 
 passport.deserializeUser(async (id, done) => {
     const user = await User.findById(id);
-    console.log("User found:", user);  // Log the user object
+    console.log('Deserialized user:', user); // Add log here to check user deserialization
     done(null, user);
 });
 

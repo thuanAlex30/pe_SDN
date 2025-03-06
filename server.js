@@ -16,12 +16,19 @@ const Booking = require('./models/bookingModel');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
+const path = require('path');
+app.use(cors({
+    credentials: true,
+    origin: 'https://pe-kpqg.onrender.com/'  // Replace with the actual URL of your frontend
+}));
+
 
 app.use(express.json());
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 
 // Kết nối MongoDB
@@ -69,13 +76,16 @@ passport.use(new FacebookStrategy({
 }));
 
 passport.serializeUser((user, done) => {
+    console.log('Serializing user:', user); // Add log here to check user serialization
     done(null, user.id);
 });
 
 passport.deserializeUser(async (id, done) => {
     const user = await User.findById(id);
+    console.log('Deserialized user:', user); // Add log here to check user deserialization
     done(null, user);
 });
+
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -131,9 +141,9 @@ app.get('/rooms', async (req, res) => {
     }
 
     try {
-        // Fetch rooms from the database
         const rooms = await Room.find();
-        res.render('rooms', { user: req.user, rooms });  // Pass rooms and user to the view
+        console.log('Rooms fetched:', rooms);  // Log rooms data
+        res.render('index', { user: req.user, rooms });  // Pass rooms and user to the view
     } catch (error) {
         console.error("Error fetching rooms:", error);
         res.status(500).send("Error fetching rooms");

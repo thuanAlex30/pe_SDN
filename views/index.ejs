@@ -7,7 +7,7 @@
 </head>
 <body>
 <% if (user) { %>
-    <h2>Welcome, <%= user.name %>!</h2>  <!-- Change from user.displayName to user.name -->
+    <h2>Welcome, <%= user.name %>!</h2>  <!-- Corrected to user.name -->
     <a href="/logout">Logout</a>
 
     <h1>Danh sách phòng</h1>
@@ -20,29 +20,32 @@
             <th>Giá thuê</th>
             <th>Hành động</th>
         </tr>
-        <% rooms.forEach(room => { %>
-            <tr>
-                <td><%= room.roomNumber %></td>
-                <td><%= room.capacity %></td>
-                <td><%= room.status %></td>
-                <td><%= room.pricePerHour %> VND/h</td>
-                <td>
-                    <a href="/rooms/<%= room._id %>/edit">Chỉnh sửa</a>
-                    <form action="/rooms/<%= room._id %>?_method=DELETE" method="POST" style="display:inline;">
-                        <button type="submit">Xóa</button>
-                    </form>
-                </td>
-            </tr>
-        <% }) %>
+        <% if (rooms && rooms.length > 0) { %>
+            <% rooms.forEach(room => { %>
+                <tr>
+                    <td><%= room.roomNumber %></td>
+                    <td><%= room.capacity %></td>
+                    <td><%= room.status %></td>
+                    <td><%= room.pricePerHour %> VND/h</td>
+                    <td>
+                        <a href="/rooms/<%= room._id %>/edit">Chỉnh sửa</a>
+                        <form action="/rooms/<%= room._id %>?_method=DELETE" method="POST" style="display:inline;">
+                            <button type="submit">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+            <% }) %>
+        <% } else { %>
+            <tr><td colspan="5">No rooms available.</td></tr>
+        <% } %>
+
     </table>
+
 
     <a href="/bookings">Xem danh sách đặt phòng</a>
 <% } else { %>
     <h2>Bạn chưa đăng nhập!</h2>
     <a href="/auth/facebook">Đăng nhập với Facebook</a>
 <% } %>
-
 </body>
-
-
 </html>
