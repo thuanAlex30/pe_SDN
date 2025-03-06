@@ -7,7 +7,7 @@
 </head>
 <body>
 <% if (user) { %>
-    <h2>Welcome, <%= user.displayName %>!</h2>
+    <h2>Welcome, <%= user.name %>!</h2>  <!-- Change from user.displayName to user.name -->
     <a href="/logout">Logout</a>
 
     <h1>Danh sách phòng</h1>
@@ -41,6 +41,7 @@
     <h2>Bạn chưa đăng nhập!</h2>
     <a href="/auth/facebook">Đăng nhập với Facebook</a>
 <% } %>
+
 </body>
 
 
